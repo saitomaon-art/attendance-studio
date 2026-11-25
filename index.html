@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>精确出勤率日历 · Attendance Studio</title>
+  <style>
+    :root {
+      --bg-base: #07060d;
+      --bg-surface: rgba(22, 18, 38, 0.58);
+      --border-glass: rgba(168, 130, 255, 0.18);
+      --border-highlight: rgba(196, 167, 255, 0.36);
+      --purple-glow: rgba(139, 92, 246, 0.38);
+      --violet-soft: #c4b5fd;
+      --text-main: #f5f3ff;
+      --text-sub: #a59ec2;
+      --text-muted: #6e678a;
+      --ok: #34d399;
+      --radius-lg: 22px;
+      --radius-md: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      overflow-x: hidden;
+      position: relative;
+      padding: 26px 16px 52px;
+      line-height: 1.5;
+    }
+
+    .ambient-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(110px);
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.65;
+    }
+    .orb-1 {
+      width: 380px;
+      height: 380px;
+      background: radial-gradient(circle, #6d28d9 0%, transparent 70%);
+      top: -110px;
+      left: -90px;
+    }
+    .orb-2 {
+      width: 440px;
+      height: 440px;
+      background: radial-gradient(circle, #4c1d95 0%, transparent 70%);
+      bottom: -140px;
+      right: -120px;
+    }
+    .orb-3 {
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(167, 139, 250, 0.24) 0%, transparent 70%);
+      top: 40%;
+      left: 55%;
+      transform: translate(-50%, -50%);
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .glass-card {
+      background: var(--bg-surface);
+      backdrop-filter: blur(22px) saturate(150%);
+      -webkit-backdrop-filter: blur(22px) saturate(150%);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      box-shadow:
+        0 20px 45px -15px rgba(0, 0, 0, 0.75),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+      padding: 22px 24px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 2px 4px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #8b5cf6 0%, #3b0764 100%);
+      border: 1px solid rgba(216, 180, 254, 0.35);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 24px var(--purple-glow);
+      font-weight: 700;
+      font-size: 16px;
+      color: #fff;
+    }
+
+    .brand h1 {
+      font-size: 19px;
+      font-weight: 600;
+      background: linear-gradient(90deg, #ffffff 0%, #c4b5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand p {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .save-pill {
+      font-size: 12px;
+      color: var(--violet-soft);
+      background: rgba(139, 92, 246, 0.14);
+      border: 1px solid rgba(139, 92, 246, 0.28);
+      padding: 6px 12px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 8px var(--ok);
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-glass);
+      color: var(--text-sub);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-ghost:hover {
+      background: rgba(155, 109, 255, 0.16);
+      color: var(--text-main);
+      border-color: var(--border-highlight);
+    }
+
+    .timeline-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 18px;
+      align-items: center;
+    }
+
+    @media (max-width: 720px) {
+      .timeline-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .countdown-days {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #ffffff 10%, #d8b4fe 65%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+      margin: 4px 0;
+    }
+
+    .timeline-pills {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .t-pill {
+      background: rgba(12, 10, 22, 0.55);
+      border: 1px solid rgba(168, 130, 255, 0.14);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .t-pill span {
+      display: block;
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+
+    .t-pill strong {
+      display: block;
+      font-size: 16px;
+      color: #fff;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .t-pill small {
+      display: block;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .mode-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: rgba(10, 8, 18, 0.65);
+      border: 1px solid var(--border-glass);
+      border-radius: 14px;
+      padding: 4px;
+      margin-bottom: 20px;
+    }
+
+    .mode-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-sub);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.35), rgba(88, 28, 135, 0.45));
+      color: #fff;
+      border: 1px solid rgba(196, 181, 253, 0.3);
+      box-shadow: 0 4px 16px rgba(109, 40, 217, 0.3);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 20px;
+      align-items: center;
+    }
+
+    @media (max-width: 700px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .rate-label {
+      font-size: 13px;
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .status-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .rate-number {
+      font-size: 52px;
+      font-weight: 700;
+      letter-spacing: -1.5px;
+      line-height: 1.06;
+      margin: 6px 0;
+      background: linear-gradient(135deg, #ffffff 15%, #c4b5fd 60%, #8b5cf6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      background: rgba(10, 8, 18, 0.75);
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #6d28d9 0%, #a855f7 55%, #e9d5ff 100%);
+      box-shadow: 0 0 18px rgba(168, 85, 247, 0.65);
+      transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .range-hint {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 8px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .kpi-box {
+      background: rgba(12, 10, 22, 0.55);
+      border: 1px solid rgba(168, 130, 255, 0.13);
+      border-radius: var(--radius-md);
+      padding: 13px 14px;
+    }
+
+    .kpi-box span {
+      display: block;
+      font-size: 11px;
+      color: var(--text-sub);
+      margin-bottom: 3px;
+    }
+
+    .kpi-box strong {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .kpi-box small {
+      display: block;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* 目标底线预测卡片 */
+    .forecast-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 18px;
+      align-items: center;
+    }
+
+    @media (max-width: 720px) {
+      .forecast-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .forecast-hero {
+      background: rgba(12, 10, 22, 0.55);
+      border: 1px solid rgba(196, 181, 253, 0.22);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+    }
+
+    .forecast-hero .f-num {
+      font-size: 38px;
+      font-weight: 700;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+      margin: 4px 0;
+    }
+
+    .forecast-hero .f-sub {
+      font-size: 12px;
+      color: var(--violet-soft);
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--violet-soft);
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .phase-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .phase-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: rgba(12, 10, 22, 0.45);
+      border: 1px solid rgba(168, 130, 255, 0.12);
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-size: 12.5px;
+    }
+
+    .phase-item strong {
+      color: var(--text-main);
+      display: block;
+    }
+
+    .phase-item span {
+      color: var(--text-sub);
+      font-size: 11.5px;
+    }
+
+    .phase-badge {
+      background: rgba(139, 92, 246, 0.16);
+      border: 1px solid rgba(196, 181, 253, 0.25);
+      color: var(--violet-soft);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .control-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .control-item {
+      background: rgba(12, 10, 22, 0.45);
+      border: 1px solid rgba(168, 130, 255, 0.12);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 10px;
+    }
+
+    .control-header label {
+      font-size: 13px;
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .control-header .sub-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: block;
+      font-weight: 400;
+    }
+
+    .num-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(25, 20, 44, 0.85);
+      border: 1px solid var(--border-glass);
+      border-radius: 10px;
+      padding: 4px 10px;
+    }
+
+    .num-input-wrap input[type="number"] {
+      width: 60px;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: right;
+      outline: none;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .num-input-wrap span {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.09);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #e9d5ff;
+      border: 3px solid #8b5cf6;
+      box-shadow: 0 0 12px rgba(139, 92, 246, 0.85);
+      cursor: pointer;
+    }
+
+    .date-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 560px) {
+      .date-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .date-field {
+      background: rgba(12, 10, 22, 0.45);
+      border: 1px solid rgba(168, 130, 255, 0.12);
+      border-radius: var(--radius-md);
+      padding: 11px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .date-field label {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    .date-field input[type="date"] {
+      background: rgba(25, 20, 44, 0.85);
+      border: 1px solid var(--border-glass);
+      border-radius: 8px;
+      padding: 5px 8px;
+      color: var(--text-main);
+      font-size: 12px;
+      outline: none;
+      color-scheme: dark;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      padding-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-orb orb-1"></div>
+  <div class="ambient-orb orb-2"></div>
+  <div class="ambient-orb orb-3"></div>
+
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="brand-badge">A%</div>
+        <div>
+          <h1>精确课表出勤推演终端</h1>
+          <p>逐日计算 · 含周六补课、12/12后周四减课、寒假与目标保底预测</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="save-pill"><span class="dot"></span><span id="saveStatus">已本地保存</span></div>
+        <button class="btn-ghost" id="resetBtn">重置默认</button>
+      </div>
+    </header>
+
+    <!-- 倒计时与剩余课日总览 -->
+    <section class="glass-card timeline-grid">
+      <div>
+        <div style="font-size:12px;color:var(--text-sub);" id="todayStatusText">
+          2026年11月25日（周三 · 今日课程已全部上完）
+        </div>
+        <div class="countdown-days" id="daysToEndText">79 天</div>
+        <div style="font-size:12.5px;color:var(--text-sub);" id="endSummaryText">
+          距离 2027年2月12日 本学期结课（含寒假）
+        </div>
+      </div>
+
+      <div class="timeline-pills">
+        <div class="t-pill">
+          <span>实际剩余上课日</span>
+          <strong id="remClassDays">36 天</strong>
+          <small id="remSatNote">含 3 个周六加课</small>
+        </div>
+        <div class="t-pill">
+          <span>剩余应上总节数</span>
+          <strong id="remPeriods">236 节</strong>
+          <small>明日起至 2/12 止</small>
+        </div>
+        <div class="t-pill">
+          <span>距寒假放假</span>
+          <strong id="daysToBreak">28 天</strong>
+          <small>12/23 起放假 20 天</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- 核心出勤率结果 -->
+    <section class="glass-card">
+      <div class="mode-switch">
+        <button class="mode-btn active" data-mode="remaining">剩余 3 学期总计（第1学期100%不计）</button>
+        <button class="mode-btn" data-mode="current">仅看本学期（已上 + 剩余精确排课）</button>
+      </div>
+
+      <div class="hero-grid">
+        <div>
+          <div class="rate-label">
+            <span id="rateTitle">剩余 3 学期预计总出勤率</span>
+            <span class="status-tag" id="statusTag">安全达标</span>
+          </div>
+          <div class="rate-number" id="mainRate">98.54%</div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="range-hint" id="rangeHint">
+            本学期请假 2.5～3 天区间：98.66% ～ 98.41%
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-box">
+            <span>统计范围总节数</span>
+            <strong id="totalPeriods">1,176 节</strong>
+            <small id="term1Breakdown">本学期精准总计 388 节</small>
+          </div>
+          <div class="kpi-box">
+            <span>实际 / 预计出勤</span>
+            <strong id="attendedPeriods">1,158.8 节</strong>
+            <small id="absentPeriods">累计缺勤 17.2 节</small>
+          </div>
+          <div class="kpi-box">
+            <span>保 90% 还能请假</span>
+            <strong id="buffer90">100.4 节</strong>
+            <small id="buffer90Days">约 14.3 个整天</small>
+          </div>
+          <div class="kpi-box">
+            <span>保 80% 还能请假</span>
+            <strong id="buffer80">218.0 节</strong>
+            <small id="buffer80Days">约 31.1 个整天</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 目标出勤率保底预测（默认维持在 88% 底线） -->
+    <section class="glass-card">
+      <div class="section-title">
+        <span>目标底线预测（稳定维持在 <span id="targetRateLabel">88.0%</span> 出勤率以上）</span>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:400;">允许最大缺勤比例 = 100% − 目标出勤率</span>
+      </div>
+
+      <div class="forecast-grid">
+        <div class="forecast-hero">
+          <div style="font-size:12px;color:var(--text-sub);" id="forecastContextText">
+            当前统计口径下，维持 ≥ 88.0% 还能请假
+          </div>
+          <div class="f-num" id="canSkipPeriods">123.9 节</div>
+          <div class="f-sub" id="canSkipDetail">
+            约合 17.7 个整天（最大缺勤上限 141.1 节 · 已用 17.2 节）
+          </div>
+        </div>
+
+        <div class="control-item" style="margin:0;">
+          <div class="control-header">
+            <label>
+              目标出勤率底线（%）
+              <span class="sub-note">默认 88%（最多允许累计缺勤 12%）</span>
+            </label>
+            <div class="num-input-wrap">
+              <input type="number" id="targetRateNum" step="0.5" min="50" max="100" />
+              <span>%</span>
+            </div>
+          </div>
+          <input type="range" id="targetRateRange" min="70" max="99" step="0.5" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 本学期逐阶段精确拆解 -->
+    <section class="glass-card">
+      <div class="section-title">
+        <span>本学期精确课表分段（11月25日周三课后为分界点）</span>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:400;">单节时长等比例计算，节数与小时数出勤率完全一致</span>
+      </div>
+      <div class="phase-list" id="phaseList"></div>
+    </section>
+
+    <!-- 动态调节面板 -->
+    <section class="glass-card">
+      <div class="section-title">
+        <span>请假与未来学期模拟调节</span>
+      </div>
+
+      <div class="control-list">
+        <div class="control-item">
+          <div class="control-header">
+            <label>
+              本学期累计请假天数（按日均 7 节折算）
+              <span class="sub-note">当前估算 2.5 ～ 3 天（默认 2.75 天 ≈ 19.25 节）</span>
+            </label>
+            <div class="num-input-wrap">
+              <input type="number" id="leaveCurrentDaysNum" step="0.25" min="0" max="40" />
+              <span>天</span>
+            </div>
+          </div>
+          <input type="range" id="leaveCurrentDaysRange" min="0" max="15" step="0.25" />
+        </div>
+
+        <div class="control-item">
+          <div class="control-header">
+            <label>
+              下学期（4/19 ～ 8/1）与第 4 学期预计请假节数
+              <span class="sub-note">可输入后续两学期合计预计请假节数</span>
+            </label>
+            <div class="num-input-wrap">
+              <input type="number" id="leaveFuturePeriodsNum" step="1" min="0" max="300" />
+              <span>节</span>
+            </div>
+          </div>
+          <input type="range" id="leaveFuturePeriodsRange" min="0" max="120" step="1" />
+        </div>
+
+        <div class="control-item">
+          <div class="control-header">
+            <label>
+              下学期定休扣除天数（4/19 ～ 8/1 及第 4 学期每学期定休）
+              <span class="sub-note">每学期 15 周 × 28 节 − 定休天数 × 7 节</span>
+            </label>
+            <div class="num-input-wrap">
+              <input type="number" id="futureHolidayDaysNum" step="0.5" min="0" max="10" />
+              <span>天/学期</span>
+            </div>
+          </div>
+          <input type="range" id="futureHolidayDaysRange" min="0" max="5" step="0.5" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 关键日期校准 -->
+    <section class="glass-card">
+      <div class="section-title">
+        <span>关键日期节点校准</span>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:400;">已按你的时间表预填，如有变动可直接修改</span>
+      </div>
+      <div class="date-grid">
+        <div class="date-field">
+          <label>周四减为4节起始日</label>
+          <input type="date" id="thuChangeDate" />
+        </div>
+        <div class="date-field">
+          <label>寒假开始日期（含当天放假）</label>
+          <input type="date" id="breakStartDate" />
+        </div>
+        <div class="date-field">
+          <label>1月复课日期（含当天上课）</label>
+          <input type="date" id="breakEndDate" />
+        </div>
+        <div class="date-field">
+          <label>本学期结课日期（含当天）</label>
+          <input type="date" id="termEndDate" />
+        </div>
+        <div class="date-field">
+          <label>下学期开课日期</label>
+          <input type="date" id="nextStartDate" />
+        </div>
+        <div class="date-field">
+          <label>下学期暑假开始日期</label>
+          <input type="date" id="nextEndDate" />
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      周六加课已锁定：2026-11-28、2026-12-05、2026-12-12（各 4 节）· 数据自动保存于 localStorage
+    </footer>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "attendance_exact_calendar_v2";
+    const MS_PER_DAY = 1000 * 60 * 60 * 24;
+    const EXTRA_SATURDAYS = ["2026-11-28", "2026-12-05", "2026-12-12"];
+
+    const DEFAULT_STATE = {
+      mode: "remaining",
+      baseDate: "2026-11-25",
+      completedWeeksBeforeToday: 8,
+      thuChangeDate: "2026-12-13",
+      breakStartDate: "2026-12-23",
+      breakEndDate: "2027-01-12",
+      termEndDate: "2027-02-12",
+      nextStartDate: "2027-04-19",
+      nextEndDate: "2027-08-01",
+      targetRate: 88,                // 目标保底出勤率默认 88%
+      leaveCurrentDays: 2.75,
+      leaveFuturePeriods: 0,
+      futureHolidayDays: 1.5,
+      remainingTerms: 3
+    };
+
+    let state = loadState();
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { ...DEFAULT_STATE };
+        return { ...DEFAULT_STATE, ...JSON.parse(raw) };
+      } catch (e) {
+        return { ...DEFAULT_STATE };
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        document.getElementById("saveStatus").textContent =
+          "已本地保存 · " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      } catch (e) {}
+    }
+
+    function parseLocalDate(str) {
+      const [y, m, d] = str.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function formatISO(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function getPeriodsForDate(dateObj) {
+      const iso = formatISO(dateObj);
+      const breakStart = parseLocalDate(state.breakStartDate);
+      const breakEnd = parseLocalDate(state.breakEndDate);
+      const thuChange = parseLocalDate(state.thuChangeDate);
+
+      if (dateObj >= breakStart && dateObj < breakEnd) return 0;
+
+      const dow = dateObj.getDay();
+      if (dow === 0 || dow === 1) return 0;
+      if (dow === 2) return 8;
+      if (dow === 3) return 4;
+      if (dow === 4) return dateObj >= thuChange ? 4 : 8;
+      if (dow === 5) return 8;
+      if (dow === 6) return EXTRA_SATURDAYS.includes(iso) ? 4 : 0;
+      return 0;
+    }
+
+    function simulateRemainingCurrentTerm() {
+      const realNow = new Date();
+      const realToday = new Date(realNow.getFullYear(), realNow.getMonth(), realNow.getDate());
+      const anchor = parseLocalDate(state.baseDate);
+      const activeToday = realToday > anchor ? realToday : anchor;
+
+      const startDate = new Date(activeToday.getFullYear(), activeToday.getMonth(), activeToday.getDate() + 1);
+      const endDate = parseLocalDate(state.termEndDate);
+      const breakStart = parseLocalDate(state.breakStartDate);
+      const breakEnd = parseLocalDate(state.breakEndDate);
+      const thuChange = parseLocalDate(state.thuChangeDate);
+
+      let remPeriods = 0;
+      let remClassDays = 0;
+      let satCount = 0;
+      let phase1Periods = 0;
+      let phase2Periods = 0;
+      let phase3Periods = 0;
+
+      for (let d = new Date(startDate); d <= endDate; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+        const p = getPeriodsForDate(d);
+        if (p > 0) {
+          remPeriods += p;
+          remClassDays += 1;
+          if (d.getDay() === 6) satCount += 1;
+          if (d < thuChange) phase1Periods += p;
+          else if (d < breakStart) phase2Periods += p;
+          else if (d >= breakEnd) phase3Periods += p;
+        }
+      }
+
+      const daysToEnd = Math.max(0, Math.round((endDate - activeToday) / MS_PER_DAY));
+      const daysToBreak = Math.max(0, Math.round((breakStart - activeToday) / MS_PER_DAY));
+      const completedPeriods = state.completedWeeksBeforeToday * 28;
+      const currentTermTotalPeriods = completedPeriods + remPeriods;
+
+      return {
+        activeToday,
+        daysToEnd,
+        daysToBreak,
+        remPeriods,
+        remClassDays,
+        satCount,
+        phase1Periods,
+        phase2Periods,
+        phase3Periods,
+        completedPeriods,
+        currentTermTotalPeriods
+      };
+    }
+
+    function calcAll(customLeaveDays = null) {
+      const sim = simulateRemainingCurrentTerm();
+      const leaveDays = customLeaveDays !== null ? customLeaveDays : state.leaveCurrentDays;
+      const currentAbsentPeriods = leaveDays * 7;
+
+      const futureTermUnit = Math.max(0, 15 * 28 - state.futureHolidayDays * 7);
+      const futureTermsCount = Math.max(0, state.remainingTerms - 1);
+      const futureTotalPeriods = futureTermUnit * futureTermsCount;
+
+      const isRemaining = state.mode === "remaining";
+      const totalPeriods = isRemaining
+        ? sim.currentTermTotalPeriods + futureTotalPeriods
+        : sim.currentTermTotalPeriods;
+
+      const absentPeriods = isRemaining
+        ? currentAbsentPeriods + state.leaveFuturePeriods
+        : currentAbsentPeriods;
+
+      const attendedPeriods = Math.max(0, totalPeriods - absentPeriods);
+      const rate = totalPeriods > 0 ? (attendedPeriods / totalPeriods) * 100 : 100;
+
+      const rem90Periods = Math.max(0, totalPeriods * 0.10 - absentPeriods);
+      const rem80Periods = Math.max(0, totalPeriods * 0.20 - absentPeriods);
+
+      // 目标出勤率（默认 88%）允许的最大缺勤节数与剩余可请假节数
+      const targetRatio = Math.min(100, Math.max(0, state.targetRate)) / 100;
+      const maxAllowAbsent = totalPeriods * (1 - targetRatio);
+      const canSkipPeriods = Math.max(0, maxAllowAbsent - absentPeriods);
+      const exceededPeriods = Math.max(0, absentPeriods - maxAllowAbsent);
+
+      return {
+        sim,
+        totalPeriods,
+        absentPeriods,
+        attendedPeriods,
+        rate,
+        rem90Periods,
+        rem80Periods,
+        futureTermUnit,
+        maxAllowAbsent,
+        canSkipPeriods,
+        exceededPeriods
+      };
+    }
+
+    function syncInputs() {
+      document.querySelectorAll(".mode-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.mode === state.mode);
+      });
+
+      document.getElementById("targetRateNum").value = state.targetRate;
+      document.getElementById("targetRateRange").value = Math.min(99, Math.max(70, state.targetRate));
+
+      document.getElementById("leaveCurrentDaysNum").value = state.leaveCurrentDays;
+      document.getElementById("leaveCurrentDaysRange").value = Math.min(15, state.leaveCurrentDays);
+
+      document.getElementById("leaveFuturePeriodsNum").value = state.leaveFuturePeriods;
+      document.getElementById("leaveFuturePeriodsRange").value = Math.min(120, state.leaveFuturePeriods);
+
+      document.getElementById("futureHolidayDaysNum").value = state.futureHolidayDays;
+      document.getElementById("futureHolidayDaysRange").value = Math.min(5, state.futureHolidayDays);
+
+      document.getElementById("thuChangeDate").value = state.thuChangeDate;
+      document.getElementById("breakStartDate").value = state.breakStartDate;
+      document.getElementById("breakEndDate").value = state.breakEndDate;
+      document.getElementById("termEndDate").value = state.termEndDate;
+      document.getElementById("nextStartDate").value = state.nextStartDate;
+      document.getElementById("nextEndDate").value = state.nextEndDate;
+    }
+
+    function render() {
+      const res = calcAll();
+      const opt25 = calcAll(2.5);
+      const con30 = calcAll(3.0);
+      const { sim } = res;
+
+      const weekNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+      const t = sim.activeToday;
+      document.getElementById("todayStatusText").textContent =
+        `${t.getFullYear()}年${t.getMonth() + 1}月${t.getDate()}日（${weekNames[t.getDay()]} · 今日课程已全部上完）`;
+
+      document.getElementById("daysToEndText").textContent = `${sim.daysToEnd} 天`;
+      document.getElementById("endSummaryText").textContent =
+        `距离 ${state.termEndDate} 本学期结课（含中间寒假）`;
+
+      document.getElementById("remClassDays").textContent = `${sim.remClassDays} 天`;
+      document.getElementById("remSatNote").textContent = `含 ${sim.satCount} 个周六加课`;
+      document.getElementById("remPeriods").textContent = `${sim.remPeriods} 节`;
+      document.getElementById("daysToBreak").textContent = `${sim.daysToBreak} 天`;
+
+      const isRemaining = state.mode === "remaining";
+      document.getElementById("rateTitle").textContent = isRemaining
+        ? "剩余 3 学期预计总出勤率（第1学期100%不计）"
+        : "本学期精准预计出勤率";
+
+      document.getElementById("mainRate").textContent = res.rate.toFixed(2) + "%";
+      document.getElementById("progressFill").style.width = Math.min(100, Math.max(0, res.rate)) + "%";
+
+      const tag = document.getElementById("statusTag");
+      if (res.rate >= state.targetRate) {
+        tag.textContent = `高于 ${state.targetRate}% 底线`;
+        tag.style.background = "rgba(52, 211, 153, 0.16)";
+        tag.style.color = "#6ee7b7";
+        tag.style.border = "1px solid rgba(52, 211, 153, 0.3)";
+      } else if (res.rate >= 80) {
+        tag.textContent = `低于 ${state.targetRate}% 目标`;
+        tag.style.background = "rgba(251, 191, 36, 0.16)";
+        tag.style.color = "#fcd34d";
+        tag.style.border = "1px solid rgba(251, 191, 36, 0.3)";
+      } else {
+        tag.textContent = "低于 80% 预警";
+        tag.style.background = "rgba(251, 113, 133, 0.18)";
+        tag.style.color = "#fda4af";
+        tag.style.border = "1px solid rgba(251, 113, 133, 0.35)";
+      }
+
+      document.getElementById("rangeHint").textContent =
+        `本学期请假 2.5～3 天区间：${opt25.rate.toFixed(2)}% ～ ${con30.rate.toFixed(2)}%`;
+
+      document.getElementById("totalPeriods").textContent = `${res.totalPeriods} 节`;
+      document.getElementById("term1Breakdown").textContent =
+        `本学期：已上 ${sim.completedPeriods} 节 + 剩余 ${sim.remPeriods} 节 = ${sim.currentTermTotalPeriods} 节`;
+
+      document.getElementById("attendedPeriods").textContent = `${res.attendedPeriods.toFixed(1)} 节`;
+      document.getElementById("absentPeriods").textContent = `累计缺勤 ${res.absentPeriods.toFixed(1)} 节`;
+
+      document.getElementById("buffer90").textContent = `${res.rem90Periods.toFixed(1)} 节`;
+      document.getElementById("buffer90Days").textContent = `约 ${(res.rem90Periods / 7).toFixed(1)} 天`;
+
+      document.getElementById("buffer80").textContent = `${res.rem80Periods.toFixed(1)} 节`;
+      document.getElementById("buffer80Days").textContent = `约 ${(res.rem80Periods / 7).toFixed(1)} 天`;
+
+      // 渲染目标保底预测
+      document.getElementById("targetRateLabel").textContent = `${state.targetRate.toFixed(1)}%`;
+      document.getElementById("forecastContextText").textContent =
+        `${isRemaining ? "剩余3学期合计" : "仅本学期"}口径下，维持 ≥ ${state.targetRate.toFixed(1)}% 还能请假`;
+
+      if (res.exceededPeriods > 0) {
+        document.getElementById("canSkipPeriods").textContent = "0.0 节";
+        document.getElementById("canSkipDetail").textContent =
+          `已超出 ${state.targetRate.toFixed(1)}% 允许缺勤上限 ${res.exceededPeriods.toFixed(1)} 节（上限 ${res.maxAllowAbsent.toFixed(1)} 节）`;
+      } else {
+        document.getElementById("canSkipPeriods").textContent = `${res.canSkipPeriods.toFixed(1)} 节`;
+        document.getElementById("canSkipDetail").textContent =
+          `约合 ${(res.canSkipPeriods / 7).toFixed(1)} 个整天 · 允许缺勤上限 ${res.maxAllowAbsent.toFixed(1)} 节（已用 ${res.absentPeriods.toFixed(1)} 节）`;
+      }
+
+      const phases = [
+        {
+          title: "阶段 1：11月26日（周四）至 12月12日（周六）",
+          desc: "周二8、周三4、周四8、周五8 + 11/28·12/05·12/12 三个周六各4节",
+          periods: `${sim.phase1Periods} 节`
+        },
+        {
+          title: "阶段 2：12月13日 至 12月22日（寒假前）",
+          desc: "12号以后周四调整为4节（周二8、周三4、周四4、周五8 = 24节/周）",
+          periods: `${sim.phase2Periods} 节`
+        },
+        {
+          title: "寒假休整：12月23日 至 1月11日",
+          desc: "全休无排课（共 20 个自然日）",
+          periods: "0 节"
+        },
+        {
+          title: "阶段 3：1月12日（周二）复课 至 2月12日（周五）结课",
+          desc: "按每周24节（周二8、周三4、周四4、周五8）持续至本学期结束",
+          periods: `${sim.phase3Periods} 节`
+        },
+        {
+          title: `下学期预估：${state.nextStartDate} 开课 至 ${state.nextEndDate} 暑假`,
+          desc: `约 15 周（含定休扣除 ${state.futureHolidayDays} 天），单学期约 ${res.futureTermUnit} 节`,
+          periods: `${res.futureTermUnit} 节/学期`
+        }
+      ];
+
+      document.getElementById("phaseList").innerHTML = phases.map(p => `
+        <div class="phase-item">
+          <div>
+            <strong>${p.title}</strong>
+            <span>${p.desc}</span>
+          </div>
+          <div class="phase-badge">${p.periods}</div>
+        </div>
+      `).join("");
+    }
+
+    function bindPair(numId, rangeId, key, minVal = 0, maxVal = 100) {
+      const numEl = document.getElementById(numId);
+      const rangeEl = document.getElementById(rangeId);
+
+      numEl.addEventListener("input", () => {
+        const raw = parseFloat(numEl.value);
+        const v = Number.isNaN(raw) ? minVal : Math.min(maxVal, Math.max(minVal, raw));
+        state[key] = v;
+        rangeEl.value = Math.min(parseFloat(rangeEl.max), Math.max(parseFloat(rangeEl.min), v));
+        saveState();
+        render();
+      });
+
+      rangeEl.addEventListener("input", () => {
+        const v = parseFloat(rangeEl.value) || minVal;
+        state[key] = v;
+        numEl.value = v;
+        saveState();
+        render();
+      });
+    }
+
+    ["thuChangeDate", "breakStartDate", "breakEndDate", "termEndDate", "nextStartDate", "nextEndDate"].forEach(id => {
+      document.getElementById(id).addEventListener("change", (e) => {
+        if (e.target.value) {
+          state[id] = e.target.value;
+          saveState();
+          render();
+        }
+      });
+    });
+
+    document.querySelectorAll(".mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.mode = btn.dataset.mode;
+        syncInputs();
+        saveState();
+        render();
+      });
+    });
+
+    bindPair("targetRateNum", "targetRateRange", "targetRate", 50, 100);
+    bindPair("leaveCurrentDaysNum", "leaveCurrentDaysRange", "leaveCurrentDays", 0, 60);
+    bindPair("leaveFuturePeriodsNum", "leaveFuturePeriodsRange", "leaveFuturePeriods", 0, 500);
+    bindPair("futureHolidayDaysNum", "futureHolidayDaysRange", "futureHolidayDays", 0, 15);
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      state = { ...DEFAULT_STATE };
+      syncInputs();
+      saveState();
+      render();
+    });
+
+    syncInputs();
+    render();
+  </script>
+</body>
+</html>
